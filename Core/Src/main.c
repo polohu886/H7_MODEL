@@ -28,7 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ad9959.h"
+#include "ZPN_Uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +49,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern volatile uint8_t pack_parse_pending;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,11 +110,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  Init_AD9959();
-  Write_Frequence(0, 1000);
-  Write_Amplitude(0, 1023);
-  Write_Phase(0, 0);
-  AD9959_IO_Update();
+  ZPN_UART_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -124,6 +120,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    static uint32_t last_tick = 0;
+    if (HAL_GetTick() - last_tick >= 1000)
+    {
+      last_tick = HAL_GetTick();
+      UART1_DMAPrintf("UART Test OK, tick=%lu\r\n", last_tick);
+    }
+
+    if (pack_parse_pending)
+    {
+      pack_parse_pending = 0;
+      PACK_ParseFromRingBuffer();
+    }
   }
   /* USER CODE END 3 */
 }
