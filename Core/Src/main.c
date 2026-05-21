@@ -29,8 +29,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ZPN_Uart.h"
-#include "string.h"
-#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -112,43 +110,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
-  /* Test 1: Blocking TX before ZPN init */
-  HAL_UART_Transmit(&huart1, (uint8_t *)"T1_BeforeInit\r\n", 14, 1000);
-
   ZPN_UART_Init();
-
-  /* Test 2: Blocking TX after ZPN init */
-  HAL_UART_Transmit(&huart1, (uint8_t *)"T2_AfterInit\r\n", 14, 1000);
-
-  /* Test 3: Raw DMA TX (bypass ZPN queue) */
-  HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
-  HAL_Delay(50); /* wait for T3 DMA+TC to complete */
-
-  /* Test 4a: DMA with AXI SRAM buffer (0x24000000) */
-  {
-    uint8_t *axi = (uint8_t*)0x24000000;
-    memcpy(axi, "T4a_AXI_SRAM_OK\r\n", 17);
-    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, axi, 17);
-    HAL_Delay(30);
-    char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4a_axi=%d\r\n", (int)s);
-    HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
-  }
-
-  /* Test 4b: DMA with D2 SRAM buffer (0x30000000) */
-  {
-    uint8_t *d2 = (uint8_t*)0x30000000;
-    memcpy(d2, "T4b_D2_SRAM_OK\r\n", 16);
-    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, d2, 16);
-    HAL_Delay(30);
-    char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4b_d2=%d\r\n", (int)s);
-    HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
-  }
-
-  /* Test 5: Raw DMA again after queue path */
-  HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T5_DMA_still_OK\r\n", 17);
   /* USER CODE END 2 */
 
   /* Infinite loop */
