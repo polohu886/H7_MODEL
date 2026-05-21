@@ -125,38 +125,25 @@ int main(void)
   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
   HAL_Delay(50); /* wait for T3 DMA+TC to complete */
 
-  /* Test 4a: DMA with stack buffer (DTCM, aligned) */
+  /* Test 4a: DMA with AXI SRAM buffer (0x24000000) */
   {
-    uint8_t buf[32];
-    memcpy(buf, "T4a_StackBuf_OK\r\n", 17);
-    __disable_irq();
-    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, buf, 17);
-    __enable_irq();
+    uint8_t *axi = (uint8_t*)0x24000000;
+    memcpy(axi, "T4a_AXI_SRAM_OK\r\n", 17);
+    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, axi, 17);
     HAL_Delay(30);
     char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4a_s=%d\r\n", (int)s);
+    int diag_len = snprintf(diag, sizeof(diag), "R4a_axi=%d\r\n", (int)s);
     HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
 
-  /* Test 4b: DMA with static buffer (DTCM, like queue buffer) */
+  /* Test 4b: DMA with D2 SRAM buffer (0x30000000) */
   {
-    static uint8_t sbuf[32];
-    memcpy(sbuf, "T4b_StaticBuf_OK\r\n", 18);
-    __disable_irq();
-    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, sbuf, 18);
-    __enable_irq();
+    uint8_t *d2 = (uint8_t*)0x30000000;
+    memcpy(d2, "T4b_D2_SRAM_OK\r\n", 16);
+    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, d2, 16);
     HAL_Delay(30);
     char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4b_s=%d\r\n", (int)s);
-    HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
-  }
-
-  /* Test 4c: Original DMAPrintf for comparison */
-  {
-    int r4c = UART1_DMAPrintf("T4c_Printf_OK\r\n");
-    HAL_Delay(30);
-    char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4c_ret=%d\r\n", r4c);
+    int diag_len = snprintf(diag, sizeof(diag), "R4b_d2=%d\r\n", (int)s);
     HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
 
