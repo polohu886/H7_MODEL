@@ -251,6 +251,7 @@ NVIC.TIM7_IRQn=true\:15\:0\:false\:false\:true\:false\:true\:true
 NVIC.TimeBase=TIM7_IRQn
 NVIC.TimeBaseIP=TIM7
 NVIC.USART1_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
+NVIC.USART2_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
 NVIC.UsageFault_IRQn=true\:0\:0\:false\:false\:true\:false\:false\:false
 PA0.Mode=IN16-Single-Ended
 PA0.Signal=ADC1_INP16

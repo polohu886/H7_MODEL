@@ -124,7 +124,8 @@ int main(void)
     if (HAL_GetTick() - last_tick >= 1000)
     {
       last_tick = HAL_GetTick();
-      UART1_DMAPrintf("UART Test OK, tick=%lu\r\n", last_tick);
+      UART1_DMAPrintf("UART1 Test OK, tick=%lu\r\n", last_tick);
+      UART2_TxEnqueue((uint8_t *)"UART2 Test OK\r\n", 15);
     }
 
     if (pack_parse_pending)
