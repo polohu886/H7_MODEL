@@ -30,6 +30,7 @@
 /* USER CODE BEGIN Includes */
 #include "ZPN_Uart.h"
 #include "string.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -128,16 +129,20 @@ int main(void)
   {
     const char *t4a = "T4a_DirectQ_OK\r\n";
     int r4a = UART1_TxEnqueue((uint8_t *)t4a, strlen(t4a));
-    (void)r4a;
+    HAL_Delay(30); /* wait for DMA to finish before blocking TX */
+    char diag[32];
+    int diag_len = snprintf(diag, sizeof(diag), "R4a_ret=%d\r\n", r4a);
+    HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
-  HAL_Delay(50);
 
   /* Test 4b: DMAPrintf (full path, same as while loop) */
   {
     int r4b = UART1_DMAPrintf("T4b_Printf_OK\r\n");
-    (void)r4b;
+    HAL_Delay(30);
+    char diag[32];
+    int diag_len = snprintf(diag, sizeof(diag), "R4b_ret=%d\r\n", r4b);
+    HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
-  HAL_Delay(50);
 
   /* Test 5: Raw DMA again after queue path */
   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T5_DMA_still_OK\r\n", 17);
