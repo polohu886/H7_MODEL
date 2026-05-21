@@ -124,8 +124,19 @@ int main(void)
   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
   HAL_Delay(50); /* wait for T3 DMA+TC to complete */
 
-  /* Test 4: Queue-path one-shot (same path as while loop) */
-  UART1_DMAPrintf("T4_Queue_OK\r\n");
+  /* Test 4a: Direct queue TX (bypass vsnprintf) */
+  {
+    const char *t4a = "T4a_DirectQ_OK\r\n";
+    int r4a = UART1_TxEnqueue((uint8_t *)t4a, strlen(t4a));
+    (void)r4a;
+  }
+  HAL_Delay(50);
+
+  /* Test 4b: DMAPrintf (full path, same as while loop) */
+  {
+    int r4b = UART1_DMAPrintf("T4b_Printf_OK\r\n");
+    (void)r4b;
+  }
   HAL_Delay(50);
 
   /* Test 5: Raw DMA again after queue path */
