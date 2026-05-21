@@ -112,11 +112,16 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
-  /* --- UART1 hardware test: blocking TX before ZPN driver --- */
-  char *hw_test = "HW_UART1_OK\r\n";
-  HAL_UART_Transmit(&huart1, (uint8_t *)hw_test, strlen(hw_test), 1000);
+  /* Test 1: Blocking TX before ZPN init */
+  HAL_UART_Transmit(&huart1, (uint8_t *)"T1_BeforeInit\r\n", 14, 1000);
 
   ZPN_UART_Init();
+
+  /* Test 2: Blocking TX after ZPN init */
+  HAL_UART_Transmit(&huart1, (uint8_t *)"T2_AfterInit\r\n", 14, 1000);
+
+  /* Test 3: Raw DMA TX (bypass ZPN queue) after ZPN init */
+  HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
   /* USER CODE END 2 */
 
   /* Infinite loop */
