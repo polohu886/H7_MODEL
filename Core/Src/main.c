@@ -29,6 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ZPN_Uart.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -110,6 +111,11 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+
+  /* --- UART1 hardware test: blocking TX before ZPN driver --- */
+  char *hw_test = "HW_UART1_OK\r\n";
+  HAL_UART_Transmit(&huart1, (uint8_t *)hw_test, strlen(hw_test), 1000);
+
   ZPN_UART_Init();
   /* USER CODE END 2 */
 
