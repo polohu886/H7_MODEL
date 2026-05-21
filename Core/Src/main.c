@@ -120,8 +120,16 @@ int main(void)
   /* Test 2: Blocking TX after ZPN init */
   HAL_UART_Transmit(&huart1, (uint8_t *)"T2_AfterInit\r\n", 14, 1000);
 
-  /* Test 3: Raw DMA TX (bypass ZPN queue) after ZPN init */
+  /* Test 3: Raw DMA TX (bypass ZPN queue) */
   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
+  HAL_Delay(50); /* wait for T3 DMA+TC to complete */
+
+  /* Test 4: Queue-path one-shot (same path as while loop) */
+  UART1_DMAPrintf("T4_Queue_OK\r\n");
+  HAL_Delay(50);
+
+  /* Test 5: Raw DMA again after queue path */
+  HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T5_DMA_still_OK\r\n", 17);
   /* USER CODE END 2 */
 
   /* Infinite loop */
