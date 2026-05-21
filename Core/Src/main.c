@@ -28,7 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ad9959.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -110,7 +110,11 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
+  Init_AD9959();
+  Write_Frequence(0, 1000);
+  Write_Amplitude(0, 1023);
+  Write_Phase(0, 0);
+  AD9959_IO_Update();
   /* USER CODE END 2 */
 
   /* Infinite loop */

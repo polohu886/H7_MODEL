@@ -45,11 +45,15 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    MY_DRIVE/MY_DDS/ad9959.c
+    MY_DRIVE/MY_Delay/delay.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    MY_DRIVE/MY_DDS
+    MY_DRIVE/MY_Delay
 )
 
 # Add project symbols (macros)
