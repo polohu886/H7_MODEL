@@ -125,17 +125,18 @@ int main(void)
   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
   HAL_Delay(50); /* wait for T3 DMA+TC to complete */
 
-  /* Test 4a: Direct queue TX (bypass vsnprintf) */
+  /* Test 4: HAL_UART_Transmit_DMA with __disable_irq (simulates KickLocked) */
   {
-    const char *t4a = "T4a_DirectQ_OK\r\n";
-    int r4a = UART1_TxEnqueue((uint8_t *)t4a, strlen(t4a));
-    HAL_Delay(30); /* wait for DMA to finish before blocking TX */
+    __disable_irq();
+    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, (uint8_t*)"T4_IRQoff_DMA\r\n", 15);
+    __enable_irq();
+    HAL_Delay(30);
     char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4a_ret=%d\r\n", r4a);
+    int diag_len = snprintf(diag, sizeof(diag), "R4_sts=%d\r\n", (int)s);
     HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
 
-  /* Test 4b: DMAPrintf (full path, same as while loop) */
+  /* Test 4b: Original DMAPrintf for comparison */
   {
     int r4b = UART1_DMAPrintf("T4b_Printf_OK\r\n");
     HAL_Delay(30);
