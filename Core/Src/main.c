@@ -125,23 +125,38 @@ int main(void)
   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)"T3_RawDMA_OK\r\n", 14);
   HAL_Delay(50); /* wait for T3 DMA+TC to complete */
 
-  /* Test 4: HAL_UART_Transmit_DMA with __disable_irq (simulates KickLocked) */
+  /* Test 4a: DMA with stack buffer (DTCM, aligned) */
   {
+    uint8_t buf[32];
+    memcpy(buf, "T4a_StackBuf_OK\r\n", 17);
     __disable_irq();
-    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, (uint8_t*)"T4_IRQoff_DMA\r\n", 15);
+    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, buf, 17);
     __enable_irq();
     HAL_Delay(30);
     char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4_sts=%d\r\n", (int)s);
+    int diag_len = snprintf(diag, sizeof(diag), "R4a_s=%d\r\n", (int)s);
     HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
 
-  /* Test 4b: Original DMAPrintf for comparison */
+  /* Test 4b: DMA with static buffer (DTCM, like queue buffer) */
   {
-    int r4b = UART1_DMAPrintf("T4b_Printf_OK\r\n");
+    static uint8_t sbuf[32];
+    memcpy(sbuf, "T4b_StaticBuf_OK\r\n", 18);
+    __disable_irq();
+    HAL_StatusTypeDef s = HAL_UART_Transmit_DMA(&huart1, sbuf, 18);
+    __enable_irq();
     HAL_Delay(30);
     char diag[32];
-    int diag_len = snprintf(diag, sizeof(diag), "R4b_ret=%d\r\n", r4b);
+    int diag_len = snprintf(diag, sizeof(diag), "R4b_s=%d\r\n", (int)s);
+    HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
+  }
+
+  /* Test 4c: Original DMAPrintf for comparison */
+  {
+    int r4c = UART1_DMAPrintf("T4c_Printf_OK\r\n");
+    HAL_Delay(30);
+    char diag[32];
+    int diag_len = snprintf(diag, sizeof(diag), "R4c_ret=%d\r\n", r4c);
     HAL_UART_Transmit(&huart1, (uint8_t*)diag, diag_len, 1000);
   }
 
