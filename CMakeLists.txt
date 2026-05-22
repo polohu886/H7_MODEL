@@ -47,6 +47,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     MY_DRIVE/MY_DDS/ad9959.c
     MY_DRIVE/MY_Delay/delay.c
+    MY_DRIVE/MY_DDS_FUN/9959_scan.c
     MY_DRIVE/MY_Uart/ZPN_Uart.c
     MY_DRIVE/MY_Uart/ZPN_Hmi.c
     MY_DRIVE/MY_Uart/ZPN_Hmi_Pack.c
@@ -58,6 +59,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     MY_DRIVE/MY_DDS
     MY_DRIVE/MY_Delay
+    MY_DRIVE/MY_DDS_FUN
     MY_DRIVE/MY_Uart
 )
 

@@ -30,6 +30,8 @@
 /* USER CODE BEGIN Includes */
 #include "ZPN_Uart.h"
 #include "delay.h"
+#include "9959_scan.h"
+#include "ad9959.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -111,6 +113,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+  Init_AD9959();
   ZPN_UART_Init();
   /* USER CODE END 2 */
 
@@ -121,8 +124,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    Delay_us(500000);
+    static uint8_t done = 0;
+    if (!done)
+    {
+      done = 1;
+      UART1_DMAPrintf("Sweep 1k-20k start\r\n");
+      SCAN_RunSweep(1000, 20000, 500, 1023, 500);
+      UART1_DMAPrintf("Sweep done, hold at 20k\r\n");
+    }
 
     if (pack_parse_pending)
     {
