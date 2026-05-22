@@ -29,6 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ZPN_Uart.h"
+#include "delay.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -95,7 +96,7 @@ int main(void)
   PeriphCommonClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  Delay_Init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -120,13 +121,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    static uint32_t last_tick = 0;
-    if (HAL_GetTick() - last_tick >= 1000)
-    {
-      last_tick = HAL_GetTick();
-      UART1_DMAPrintf("UART1 Test OK, tick=%lu\r\n", last_tick);
-      UART2_TxEnqueue((uint8_t *)"UART2 Test OK\r\n", 15);
-    }
+    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+    Delay_us(500000);
 
     if (pack_parse_pending)
     {
