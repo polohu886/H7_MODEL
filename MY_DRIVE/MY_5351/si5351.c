@@ -452,7 +452,10 @@ err_t si5351_setupMultisynth(uint8_t     output,
   /* Configure CLKx control register. */
   uint8_t clkControlReg = 0x0F;                             /* 8mA drive, non-inverted, powered */
   if (pllSource == SI5351_PLL_B) clkControlReg |= (1 << 5); /* use PLLB */
-  if (num == 0) clkControlReg |= (1 << 6);                  /* integer mode */
+  if (num == 0 && (div == 4 || div == 6 || div == 8))       /* integer mode, 仅4/6/8有效 */
+    clkControlReg |= (1 << 6);
+  else
+    clkControlReg &= ~(1 << 6);
   switch (output)
   {
     case 0:
@@ -498,9 +501,9 @@ err_t si5351_write8 (uint8_t reg, uint8_t value)
 {
 	HAL_StatusTypeDef status = HAL_OK;
   
-	while (HAL_I2C_IsDeviceReady(&hi2c2, (uint16_t)(SI5351_ADDRESS<<1), 3, 100) != HAL_OK) { }
+	while (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(SI5351_ADDRESS<<1), 3, 100) != HAL_OK) { }
 
-    status = HAL_I2C_Mem_Write(&hi2c2,							// I2C handle
+    status = HAL_I2C_Mem_Write(&hi2c1,							// I2C handle
               (uint8_t)(SI5351_ADDRESS<<1),		// 7-bit address shifted
                 (uint8_t)reg,						// register address
                 I2C_MEMADD_SIZE_8BIT,				// 8-bit mem address size
@@ -520,13 +523,13 @@ err_t si5351_read8(uint8_t reg, uint8_t *value)
 {
 	HAL_StatusTypeDef status = HAL_OK;
 
-	while (HAL_I2C_IsDeviceReady(&hi2c2, (uint16_t)(SI5351_ADDRESS<<1), 3, 100) != HAL_OK) { }
+	while (HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(SI5351_ADDRESS<<1), 3, 100) != HAL_OK) { }
 
-    status = HAL_I2C_Mem_Read(&hi2c2,							// I2C handle
+    status = HAL_I2C_Mem_Read(&hi2c1,							// I2C handle
               (uint8_t)(SI5351_ADDRESS<<1),		// 7-bit address shifted
                 (uint8_t)reg,						// register address
                 I2C_MEMADD_SIZE_8BIT,				// 8-bit mem address size
-                (uint8_t*)(&value),				// data pointer
+                (uint8_t*)value,				// data pointer
                 1,								// data length
                 100);							// timeout ms
 
