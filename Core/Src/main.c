@@ -34,6 +34,7 @@
 #include "DFT.h"
 #include "MCP41xx.h"
 #include "max262.h"
+#include "my_dac.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,12 +115,14 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   ZPN_UART_Init();
   si5351_Init();
   MCP410XXInit();
   MAX262_Init();
-  UART1_DMAPrintf("MAX262 test start\r\n");
+  MY_DAC_Sine_StartAuto(10000.0f, 2.0f, 1.65f);
+  UART1_DMAPrintf("DAC auto test\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,14 +132,15 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    static uint32_t last_test = 0;
-    if (HAL_GetTick() - last_test > 3000) {
-      last_test = HAL_GetTick();
+    static uint32_t last_print = 0;
+    if (HAL_GetTick() - last_print > 2000) {
+      last_print = HAL_GetTick();
       HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 
-      float fclk = lhp_WorkFclk(1000.0f, 1.0f, MODE_3, CH_A);
-      SI5351_SetFrequency(1, (uint32_t)fclk);
-      UART1_DMAPrintf("MAX262 LPF f0=1000Hz CLK1=%dHz\r\n", (int)fclk);
+      float f = MY_DAC_Sine_GetFrequency();
+      int fi = (int)f;
+      int ff = (int)((f - (float)fi) * 10.0f + 0.5f);
+      UART1_DMAPrintf("DAC f=%d.%d Hz upd=%lu\r\n", fi, ff, MY_DAC_GetSampleUpdateHz());
     }
 
     if (pack_parse_pending)

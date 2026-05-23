@@ -29,7 +29,9 @@
 #define setWr      HAL_GPIO_WritePin(WR_GPIO_Port, WR_Pin, GPIO_PIN_SET)
 #define resetWr    HAL_GPIO_WritePin(WR_GPIO_Port, WR_Pin, GPIO_PIN_RESET)
 
+#ifndef PI
 #define PI 3.141592653
+#endif
  
 extern enum {MODE_1=0,MODE_2,MODE_3,MODE_4} workMode;
 extern enum {CH_A=0,CH_B} channel; 

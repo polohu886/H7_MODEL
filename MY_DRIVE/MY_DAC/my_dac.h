@@ -15,6 +15,7 @@ HAL_StatusTypeDef MY_DAC_Sine_Start(float freq_hz);
 HAL_StatusTypeDef MY_DAC_Sine_SetFrequency(float freq_hz);
 HAL_StatusTypeDef MY_DAC_Sine_SetSamples(uint16_t samples_per_cycle);
 HAL_StatusTypeDef MY_DAC_Sine_SetAmplitudeOffset(float amplitude_vpp, float offset_v);
+HAL_StatusTypeDef MY_DAC_Sine_StartAuto(float freq_hz, float amplitude_vpp, float offset_v);
 
 float MY_DAC_Sine_GetFrequency(void);
 float MY_DAC_Sine_GetTheoreticalMaxFrequency(void);

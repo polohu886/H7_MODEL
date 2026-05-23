@@ -181,6 +181,13 @@ SECTIONS
   PROVIDE( __tdata_start = ADDR(.tdata) );
   PROVIDE( __tdata_size = __tdata_end - __tdata_start );
 
+  /* DAC DMA buffer section — must be in AXI SRAM for DMA access */
+  .DAC_DMA_BUFFER : ALIGN(32)
+  {
+    *(.DAC_DMA_BUFFER)
+    . = ALIGN(4);
+  } >RAM
+
   PROVIDE( __data_start = ADDR(.data) );
   PROVIDE( __data_size = __data_end - __data_start );
 

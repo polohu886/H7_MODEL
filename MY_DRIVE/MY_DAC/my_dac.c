@@ -1,6 +1,7 @@
 #include "my_dac.h"
 
 #include <stdio.h>
+#include "ZPN_Uart.h"
 
 #include "arm_math.h"
 #include "dac.h"
@@ -11,7 +12,7 @@
 #define MY_DAC_MAX_CODE                   4095.0f
 #define MY_DAC_TABLE_MAX_SAMPLES          256U
 #define MY_DAC_DEFAULT_SAMPLES            128U
-#define MY_DAC_RECOMMENDED_UPDATE_HZ      1000000U
+#define MY_DAC_RECOMMENDED_UPDATE_HZ      240000000U
 
 /* This section is explicitly mapped to AXI SRAM in scatter file for DMA1 accessibility. */
 __attribute__((section("DAC_DMA_BUFFER"), aligned(32)))
@@ -363,16 +364,18 @@ HAL_StatusTypeDef MY_DAC_Sine_Start(float freq_hz)
 
 	s_started = 1U;
 
-	printf("DAC sine start: f=%.3f Hz, points=%u, update=%lu Hz, rec_max=%.3f Hz\r\n",
-				 s_freq_hz,
-				 s_samples_per_cycle,
-				 s_update_hz,
-				 MY_DAC_Sine_GetRecommendedMaxFrequency());
-	printf("TIM6: clk=%lu Hz, PSC=%lu, ARR=%lu, LUT@0x%08lX\r\n",
-				 MY_DAC_GetTim6ClkHz(),
-				 s_tim6_psc,
-				 s_tim6_arr,
-				 (uint32_t)s_sine_lut);
+	{
+		int fi = (int)s_freq_hz;
+		int ff = (int)((s_freq_hz - (float)fi) * 1000.0f + 0.5f);
+		float rec = MY_DAC_Sine_GetRecommendedMaxFrequency();
+		int ri = (int)rec;
+		int rf = (int)((rec - (float)ri) * 1000.0f + 0.5f);
+		UART1_DMAPrintf("DAC sin: f=%d.%03d Hz pts=%u upd=%lu rec=%d.%03d\r\n",
+		                fi, ff, s_samples_per_cycle, s_update_hz, ri, rf);
+	}
+	UART1_DMAPrintf("TIM6: clk=%lu Hz PSC=%lu ARR=%lu LUT@0x%08lX\r\n",
+	                MY_DAC_GetTim6ClkHz(), s_tim6_psc, s_tim6_arr,
+	                (uint32_t)s_sine_lut);
 
 	return HAL_OK;
 }
@@ -405,6 +408,21 @@ HAL_StatusTypeDef MY_DAC_Sine_SetSamples(uint16_t samples_per_cycle)
 	}
 
 	return HAL_OK;
+}
+
+HAL_StatusTypeDef MY_DAC_Sine_StartAuto(float freq_hz, float amplitude_vpp, float offset_v)
+{
+	uint16_t samples;
+
+	if (freq_hz <= 0.0f) return HAL_ERROR;
+
+	samples = (uint16_t)(MY_DAC_RECOMMENDED_UPDATE_HZ / freq_hz);
+	if (samples < 8U)  samples = 8U;
+	if (samples > MY_DAC_TABLE_MAX_SAMPLES) samples = MY_DAC_TABLE_MAX_SAMPLES;
+
+	if (MY_DAC_Sine_Init(samples, amplitude_vpp, offset_v) != HAL_OK)
+		return HAL_ERROR;
+	return MY_DAC_Sine_Start(freq_hz);
 }
 
 float MY_DAC_Sine_GetFrequency(void)

@@ -58,6 +58,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     MY_DRIVE/MY_FFT/WindowFunction.c
     MY_DRIVE/MY_MCP41/MCP41xx.c
     MY_DRIVE/MY_262/MAX262.c
+    MY_DRIVE/MY_DAC/my_dac.c
 )
 
 # Add include paths
@@ -71,6 +72,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     MY_DRIVE/MY_FFT
     MY_DRIVE/MY_MCP41
     MY_DRIVE/MY_262
+    MY_DRIVE/MY_DAC
 )
 
 # Add project symbols (macros)
