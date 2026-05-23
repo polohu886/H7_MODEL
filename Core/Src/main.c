@@ -32,6 +32,7 @@
 #include "delay.h"
 #include "si5351.h"
 #include "DFT.h"
+#include "MCP41xx.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,10 +115,8 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   ZPN_UART_Init();
-  si5351_Init();
-  SI5351_SetFrequency(0, 1024000);
-  DFT_App_Init(512000.0f, 3.3f, 0.0f, 0.0f);
-  UART1_DMAPrintf("DFT started\r\n");
+  MCP410XXInit();
+  UART1_DMAPrintf("MCP41xx test start\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,27 +126,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    static uint32_t last_diag = 0;
-    if (HAL_GetTick() - last_diag > 2000) {
-      last_diag = HAL_GetTick();
+    static uint32_t last_test = 0;
+    if (HAL_GetTick() - last_test > 2000) {
+      last_test = HAL_GetTick();
       HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 
-      DFT_Process();
-      {
-        float f0 = DFT_GetFundFreq();
-        float thd = DFT_GetTHD();
-        int f0_i = (int)f0;
-        int f0_f = (int)((f0 - (float)f0_i) * 10.0f + 0.5f);
-        int thd_i = (int)(thd * 10000.0f + 0.5f);
-        UART1_DMAPrintf("DFT:f0=%d.%d THD=0.%04d H=",
-                        f0_i, f0_f, thd_i);
-      }
-      for (uint32_t h = 1; h <= 5; h++) {
-        float m = DFT_GetHarmonicMag(h);
-        int mi = (int)(m * 10000.0f + 0.5f);
-        UART1_DMAPrintf("%d.%04d ", mi / 10000, mi % 10000);
-      }
-      UART1_DMAPrintf("\r\n");
+      static uint8_t gain_x10 = 0;
+      float gain = gain_x10 * 0.1f;
+      SetAmplifierGain(gain);
+      UART1_DMAPrintf("MCP41xx gain=%d.%d\r\n", gain_x10 / 10, gain_x10 % 10);
+      gain_x10 += 5;
+      if (gain_x10 > 20) gain_x10 = 0;
     }
 
     if (pack_parse_pending)

@@ -19,7 +19,7 @@
 
 void mcp_delay(uint n)
 {
-	n=n*30; // H7 480MHz 适配，模拟 SPI 时序
+	n=n*110;
 	while(n--);
 }
 
@@ -27,18 +27,21 @@ void MCP410XXInit(void)
 {
 	GPIO_InitTypeDef  GPIO_InitStructure;
 	
-	// Enable GPIOD clock
-	__HAL_RCC_GPIOD_CLK_ENABLE();
+	// Enable GPIOC clock - HAL uses __HAL_RCC_GPIOC_CLK_ENABLE() macro
+	__HAL_RCC_GPIOC_CLK_ENABLE();
 	
 	// Configure all pins as GPIO output
-	GPIO_InitStructure.Pin = (MCP41xx_CS1_Pin | MCP41xx_DAT_Pin | MCP41xx_CLK_Pin);
+	GPIO_InitStructure.Pin = (MCP41xx_CS1_Pin | MCP41xx_CS2_Pin | MCP41xx_DAT_Pin | MCP41xx_CLK_Pin);
 	GPIO_InitStructure.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStructure.Pull = GPIO_NOPULL;
-	GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(GPIOD, &GPIO_InitStructure);
+	GPIO_InitStructure.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(MCP41xx_CS1_GPIO, &GPIO_InitStructure);
 	
 	// Set all pins high initially
-	HAL_GPIO_WritePin(GPIOD, (MCP41xx_CS1_Pin | MCP41xx_DAT_Pin | MCP41xx_CLK_Pin), GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MCP41xx_CS1_GPIO, MCP41xx_CS1_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MCP41xx_CS2_GPIO, MCP41xx_CS2_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MCP41xx_DAT_GPIO, MCP41xx_DAT_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MCP41xx_CLK_GPIO, MCP41xx_CLK_Pin, GPIO_PIN_SET);
 }
 
 void MCP41xx_1writedata(uchar dat1)		//调整数字电位器1

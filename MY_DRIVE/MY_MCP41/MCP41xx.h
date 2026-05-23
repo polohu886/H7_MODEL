@@ -9,15 +9,15 @@
 #define DATA_CD 0x11
 
 // Define GPIO pins for MCP41xx control
-// Using PD2 (DAT), PD3 (CLK), PD4 (CS)
-#define MCP41xx_CS1_Pin   GPIO_PIN_4
-#define MCP41xx_CS1_GPIO  GPIOD
-#define MCP41xx_CS2_Pin   GPIO_PIN_4  // 如果只有一个CS，指向同一个引脚或留空
-#define MCP41xx_CS2_GPIO  GPIOD
-#define MCP41xx_CLK_Pin   GPIO_PIN_3
-#define MCP41xx_CLK_GPIO  GPIOD
-#define MCP41xx_DAT_Pin   GPIO_PIN_2
-#define MCP41xx_DAT_GPIO  GPIOD
+// Using PC8, PC9, PC12, PC13
+#define MCP41xx_CS1_Pin   GPIO_PIN_8
+#define MCP41xx_CS1_GPIO  GPIOC
+#define MCP41xx_CS2_Pin   GPIO_PIN_9
+#define MCP41xx_CS2_GPIO  GPIOC
+#define MCP41xx_CLK_Pin   GPIO_PIN_13
+#define MCP41xx_CLK_GPIO  GPIOC
+#define MCP41xx_DAT_Pin   GPIO_PIN_12
+#define MCP41xx_DAT_GPIO  GPIOC
 
 // SPI control macros using HAL
 #define MCP41xx_SPI_CLK_H()   HAL_GPIO_WritePin(MCP41xx_CLK_GPIO, MCP41xx_CLK_Pin, GPIO_PIN_SET)
