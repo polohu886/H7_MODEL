@@ -31,7 +31,7 @@
 #include "ZPN_Uart.h"
 #include "delay.h"
 #include "si5351.h"
-#include "Phase.h"
+#include "DFT.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -116,8 +116,8 @@ int main(void)
   ZPN_UART_Init();
   si5351_Init();
   SI5351_SetFrequency(0, 1024000);
-  FFT_App_Init();
-  UART1_DMAPrintf("FFT App started\r\n");
+  DFT_App_Init(512000.0f, 3.3f, 0.0f, 0.0f);
+  UART1_DMAPrintf("DFT started\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -131,9 +131,25 @@ int main(void)
     if (HAL_GetTick() - last_diag > 2000) {
       last_diag = HAL_GetTick();
       HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-      UART1_DMAPrintf("CB=%lu\r\n", (unsigned long)g_cb_count);
+
+      DFT_Process();
+      {
+        float f0 = DFT_GetFundFreq();
+        float thd = DFT_GetTHD();
+        int f0_i = (int)f0;
+        int f0_f = (int)((f0 - (float)f0_i) * 10.0f + 0.5f);
+        int thd_i = (int)(thd * 10000.0f + 0.5f);
+        UART1_DMAPrintf("DFT:f0=%d.%d THD=0.%04d H=",
+                        f0_i, f0_f, thd_i);
+      }
+      for (uint32_t h = 1; h <= 5; h++) {
+        float m = DFT_GetHarmonicMag(h);
+        int mi = (int)(m * 10000.0f + 0.5f);
+        UART1_DMAPrintf("%d.%04d ", mi / 10000, mi % 10000);
+      }
+      UART1_DMAPrintf("\r\n");
     }
-    FFT_SendSpectrumFrame();
+
     if (pack_parse_pending)
     {
       pack_parse_pending = 0;

@@ -2,21 +2,49 @@
  ******************************************************************************
  * @file    DFT.c
  * @brief   离散傅里叶变换谐波分析
+ * @author  POLO_HU
+ * @version V1.1
+ * @date    2026-05-23
  * @note    流程: 粗FFT找基波 → 频点精修 → DFT精确计算1-10次谐波幅值 → THD
+ *          V1.1: 基波搜索范围改为可配置参数
  ******************************************************************************
  */
 
 #include "DFT.h"
 #include "arm_const_structs.h"
+#include "adc.h"
+#include "tim.h"
 #include <math.h>
 #include <string.h>
 
 /* ==================== 静态变量 ==================== */
 static float32_t g_fs = 64000.0f;
 static float32_t g_vref = 3.3f;
+static float32_t g_search_min = DFT_SEARCH_MIN_HZ;
+static float32_t g_search_max = DFT_SEARCH_MAX_HZ;
 static float32_t g_fund_freq = 0.0f;
 static float32_t g_thd = 0.0f;
 static float32_t g_mags[DFT_MAX_HARMONIC + 1] = {0.0f}; /* [0]空，[1..10]各次谐波DFT幅值 */
+
+/* DMA缓冲区（驱动内部管理） */
+static uint16_t dft_adc_buf[DFT_FFT_LENGTH];
+static uint16_t dft_snapshot[DFT_FFT_LENGTH];
+static volatile uint8_t dft_snapshot_ready = 0;
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+  if (hadc->Instance == ADC1)
+  {
+    HAL_ADC_Stop_DMA(hadc);
+    if (!dft_snapshot_ready)
+    {
+      memcpy(dft_snapshot, dft_adc_buf, sizeof(dft_snapshot));
+      dft_snapshot_ready = 1;
+    }
+    __HAL_ADC_CLEAR_FLAG(&hadc1, ADC_FLAG_OVR);
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)dft_adc_buf, DFT_FFT_LENGTH);
+  }
+}
 
 /* FFT工作缓冲 */
 static float32_t fft_in[DFT_FFT_LENGTH * 2];
@@ -82,7 +110,8 @@ static void dft_harmonics_all(const float32_t *x, uint32_t N,
 
   for (uint32_t h = 1; h <= DFT_MAX_HARMONIC; h++)
   {
-    mags[h] = sqrtf(re[h] * re[h] + im[h] * im[h]);
+    float32_t val = sqrtf(re[h] * re[h] + im[h] * im[h]);
+    mags[h] = val * 2.0f / (float32_t)N;  /* 归一化到实际电压幅值 */
   }
 }
 
@@ -107,10 +136,11 @@ static float32_t find_fundamental(void)
 
   /* 4. 在搜索范围内找最大峰 */
   uint32_t half = DFT_FFT_LENGTH / 2U;
-  uint32_t min_idx = (uint32_t)((DFT_SEARCH_MIN_HZ * (float32_t)DFT_FFT_LENGTH) / g_fs + 0.5f);
-  uint32_t max_idx = (uint32_t)((DFT_SEARCH_MAX_HZ * (float32_t)DFT_FFT_LENGTH) / g_fs + 0.5f);
+  uint32_t min_idx = (uint32_t)((g_search_min * (float32_t)DFT_FFT_LENGTH) / g_fs + 0.5f);
+  uint32_t max_idx = (uint32_t)((g_search_max * (float32_t)DFT_FFT_LENGTH) / g_fs + 0.5f);
   if (min_idx < 1U) min_idx = 1U;
   if (max_idx > half - 1U) max_idx = half - 1U;
+  if (min_idx > max_idx) min_idx = max_idx;
 
   float32_t peak = 0.0f;
   uint32_t peak_idx = min_idx;
@@ -123,32 +153,66 @@ static float32_t find_fundamental(void)
     }
   }
 
-  /* 5. 用相邻bin做频率精修（矩形窗） */
-  float32_t delta = 0.0f;
-  float32_t m_prev = (peak_idx > 0) ? fft_mag[peak_idx - 1] : 0.0f;
-  float32_t m_next = fft_mag[peak_idx + 1];
-
-  if (m_next > m_prev)
+  /* 5. 抛物线插值精修频率 (3点: y0,y1,y2 → 峰在 offset=-b/(2a)) */
   {
-    delta = m_next / (fft_mag[peak_idx] + m_next);
+    float32_t y0 = (peak_idx > 0) ? fft_mag[peak_idx - 1] : 0.0f;
+    float32_t y1 = fft_mag[peak_idx];
+    float32_t y2 = fft_mag[peak_idx + 1];
+    float32_t denom = 2.0f * (2.0f * y1 - y0 - y2);
+    float32_t delta = 0.0f;
+    if (denom > 1e-12f)
+    {
+      delta = (y0 - y2) / denom;
+      if (delta > 0.5f) delta = 0.5f;
+      if (delta < -0.5f) delta = -0.5f;
+    }
+    return ((float32_t)peak_idx + delta) * g_fs / (float32_t)DFT_FFT_LENGTH;
   }
-  else
-  {
-    delta = -m_prev / (fft_mag[peak_idx] + m_prev);
-  }
-
-  return ((float32_t)peak_idx + delta) * g_fs / (float32_t)DFT_FFT_LENGTH;
 }
 
 /* ==================== 公开接口 ==================== */
 
-void DFT_Init(float32_t sampling_rate, float32_t ref_voltage)
+void DFT_App_Init(float32_t sampling_rate, float32_t ref_voltage,
+                  float32_t search_min_hz, float32_t search_max_hz)
 {
+  /* 保存参数 */
   g_fs = sampling_rate;
   g_vref = ref_voltage;
+  g_search_min = (search_min_hz > 0.0f) ? search_min_hz : DFT_SEARCH_MIN_HZ;
+  g_search_max = (search_max_hz > 0.0f) ? search_max_hz : DFT_SEARCH_MAX_HZ;
   memset(g_mags, 0, sizeof(g_mags));
   g_fund_freq = 0.0f;
   g_thd = 0.0f;
+
+  /* 配置ADC1通道 → PC4 */
+  {
+    ADC_ChannelConfTypeDef s = {0};
+    s.Channel = ADC_CHANNEL_4;
+    s.Rank = ADC_REGULAR_RANK_1;
+    s.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+    s.SingleDiff = ADC_SINGLE_ENDED;
+    s.OffsetNumber = ADC_OFFSET_NONE;
+    HAL_ADC_ConfigChannel(&hadc1, &s);
+  }
+
+  /* 配置TIM3: 采样率 = Si5351 1.024MHz / Period */
+  {
+    uint32_t period = 1024000U / (uint32_t)sampling_rate;
+    if (period < 2U) period = 2U;
+    htim3.Init.Period = period - 1U;
+    __HAL_TIM_SET_AUTORELOAD(&htim3, htim3.Init.Period);
+  }
+
+  /* 启动TIM3 + ADC DMA */
+  HAL_TIM_Base_Start(&htim3);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)dft_adc_buf, DFT_FFT_LENGTH);
+}
+
+void DFT_Process(void)
+{
+  if (!dft_snapshot_ready) return;
+  dft_snapshot_ready = 0;
+  DFT_ProcessFrame(dft_snapshot, DFT_FFT_LENGTH);
 }
 
 void DFT_ProcessFrame(const uint16_t *adc_data, uint32_t length)

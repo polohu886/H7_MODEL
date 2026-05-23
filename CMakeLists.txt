@@ -53,7 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     MY_DRIVE/MY_Uart/ZPN_Hmi_Pack.c
     MY_DRIVE/MY_Uart/ZPN_Uart_Vofa.c
     MY_DRIVE/MY_5351/si5351.c
-    MY_DRIVE/MY_FFT/Phase.c
+    # MY_DRIVE/MY_FFT/Phase.c  /* disabled for DFT-only test */
     MY_DRIVE/MY_FFT/DFT.c
     MY_DRIVE/MY_FFT/WindowFunction.c
 )
