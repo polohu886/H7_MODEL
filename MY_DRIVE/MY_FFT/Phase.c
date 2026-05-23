@@ -2,25 +2,31 @@
  ******************************************************************************
  * @file    Phase.c
  * @brief   相位计算与FFT算法源文件 - 适配STM32H7系列
- * @author  
- * @version V2.0
- * @date    2026-01-23
+ * @author  POLO_HU
+ * @version V2.1
+ * @date    2026-05-23
  ******************************************************************************
  * @attention
  *
- * 本文件实现了基于FFT算法的相位差计算功能，适用于STM32H7系列微控制器。
+ * 本文件实现了基于FFT算法的频谱分析功能，适用于STM32H7系列微控制器。
  * 主要功能：
- * 1. ADC信号采集
- * 2. 1024点FFT变换
- * 3. 信号处理与输出
- * 
- * @note 整合了主函数中的FFT逻辑，提供统一的调用接口。
- * 
+ * 1. ADC DMA 信号采集 (TIM3 TRGO触发, Si5351 ETR时钟)
+ * 2. 4096点FFT变换 (CMSIS DSP arm_cfft_f32)
+ * 3. Hanning窗 / 幅值归一化 (输出实际电压)
+ * 4. 串口频谱输出 (FFT_BEGIN/FFT_END 帧格式, 适配 plot_fft_from_serial.m)
+ *
+ * @note   V2.1 变更:
+ *         - 移除 DFT/THD 计算, 简化为纯FFT频谱输出
+ *         - 窗函数改用 WindowFunction.c 的 Hanning 窗
+ *         - TIM3 周期覆盖为 2 (采样率 512kHz)
+ *         - 修正 Si5351 ETR 时钟下的采样率自动计算
+ *         - 添加 FFT_SendSpectrumFrame() 输出 MATLAB 脚本兼容格式
+ *
  ******************************************************************************
  */
 
 #include "Phase.h"
-#include "DFT.h"
+#include "WindowFunction.h"
 #include "stm32h743xx.h"
 #include "main.h"
 #include "adc.h"
@@ -31,12 +37,12 @@
 /* 当前工程ADC配置为16bit，满量程65535 */
 static uint32_t ADC_MaxValue = ((1UL << ADC_EFFECTIVE_BITS) - 1UL);
 static float32_t FFT_SamplingRate_Hz = SAMPLING_RATE_DEFAULT;
-static float32_t g_thd_ratio = 0.0f;
-static float32_t g_fund_freq_hz = 0.0f;
 static volatile uint8_t g_frame_ready = 0;
 static volatile uint8_t g_transmitting = 0;
 static uint16_t adc_snapshot[FFT_LENGTH] = {0};
 static float32_t fft_mag_snapshot[FFT_LENGTH] = {0.0f};
+
+static uint8_t SCAN_ConfigAdc1ToFFTInput(void);
 
 static void Phase_StartAcq(void)
 {
@@ -106,16 +112,27 @@ static void Phase_GenerateSimulatedSignal(float32_t *signal, uint16_t length)
 
 static float32_t Phase_Get_TIM3_TriggerFreq_Hz(void)
 {
-  uint32_t pclk1_hz = HAL_RCC_GetPCLK1Freq();
-  uint32_t apb1_div = (RCC->D2CFGR & RCC_D2CFGR_D2PPRE1) >> RCC_D2CFGR_D2PPRE1_Pos;
-  uint32_t timclk_hz = pclk1_hz;
+  uint32_t timclk_hz;
 
-  if (apb1_div >= 4U)
+  /* TIM3 clocked by Si5351 CLK0 via ETR pin (external clock mode 2 + ECE) */
+  if ((TIM3->SMCR & TIM_SMCR_ECE) != 0U)
   {
-    timclk_hz = pclk1_hz * 2U;
+    timclk_hz = 1024000U; /* Si5351 CLK0, same as main.c setting */
+  }
+  else
+  {
+    uint32_t pclk1_hz = HAL_RCC_GetPCLK1Freq();
+    uint32_t apb1_div = (RCC->D2CFGR & RCC_D2CFGR_D2PPRE1) >> RCC_D2CFGR_D2PPRE1_Pos;
+    timclk_hz = pclk1_hz;
+    if (apb1_div >= 4U)
+    {
+      timclk_hz = pclk1_hz * 2U;
+    }
   }
 
-  return (float32_t)timclk_hz / ((float32_t)(htim3.Init.Prescaler + 1U) * (float32_t)(htim3.Init.Period + 1U));
+  uint32_t psc = (uint32_t)(htim3.Init.Prescaler + 1U);
+  uint32_t arr = (uint32_t)(htim3.Init.Period + 1U);
+  return (float32_t)timclk_hz / (float32_t)(psc * arr);
 }
 
 /* 全局变量定义 */
@@ -201,90 +218,30 @@ static void Phase_ComputeThdAndFft(void)
     adc_float_buffer[i] = centered * Reference_Voltage;
   }
 
-  Apply_FlatTop_Window(adc_float_buffer, FFT_LENGTH);
+  {
+    static float32_t win_coeff[FFT_LENGTH];
+    static uint8_t win_init_done = 0;
+    if (!win_init_done)
+    {
+      hannWin(FFT_LENGTH, win_coeff);
+      win_init_done = 1;
+    }
+    Window_Apply(adc_float_buffer, win_coeff, FFT_LENGTH);
+  }
 
   arm_cfft_f32_app(adc_float_buffer, CFFT_Instance);
 
-  float32_t max_val = 0.0f;
-  uint32_t max_idx = 1U;
-  uint32_t search_start = 1U;
-  uint32_t search_end = (FFT_LENGTH / 2U) - 1U;
-
-  if (FFT_SamplingRate_Hz > 1.0f)
+  /* Normalize FFT magnitude to actual voltage amplitude:
+   *   CMSIS CFFT does NOT scale by 1/N → divide by N/2
+   *   Hanning window coherent gain = 0.5 → divide by CG
+   *   Combined: scale = 2/(N*0.5) = 2/(4096*0.5) ≈ 0.0009766 */
   {
-    uint32_t min_idx = (uint32_t)((FUND_SEARCH_MIN_HZ * (float32_t)FFT_LENGTH) / FFT_SamplingRate_Hz + 0.5f);
-    uint32_t max_idx_local = (uint32_t)((FUND_SEARCH_MAX_HZ * (float32_t)FFT_LENGTH) / FFT_SamplingRate_Hz + 0.5f);
-    if (min_idx < 1U)
+    const float32_t scale = 2.0f / ((float32_t)FFT_LENGTH * 0.5f);
+    for (uint32_t i = 0; i < FFT_LENGTH; i++)
     {
-      min_idx = 1U;
-    }
-    if (max_idx_local > search_end)
-    {
-      max_idx_local = search_end;
-    }
-    if (min_idx <= max_idx_local)
-    {
-      search_start = min_idx;
-      search_end = max_idx_local;
+      FFT_OutputBuf[i] *= scale;
     }
   }
-
-  for (uint32_t i = search_start; i <= search_end; i++)
-  {
-    if (FFT_OutputBuf[i] > max_val)
-    {
-      max_val = FFT_OutputBuf[i];
-      max_idx = i;
-    }
-  }
-
-  g_fund_freq_hz = ((float32_t)max_idx * FFT_SamplingRate_Hz) / (float32_t)FFT_LENGTH;
-
-  float32_t fund_sum = 0.0f;
-  uint32_t fund_start = (max_idx > HARM_BIN_HALF_WIDTH) ? (max_idx - HARM_BIN_HALF_WIDTH) : 1U;
-  uint32_t fund_end = max_idx + HARM_BIN_HALF_WIDTH;
-  if (fund_end > (FFT_LENGTH / 2U) - 1U)
-  {
-    fund_end = (FFT_LENGTH / 2U) - 1U;
-  }
-  for (uint32_t i = fund_start; i <= fund_end; i++)
-  {
-    float32_t mag = FFT_OutputBuf[i];
-    fund_sum += mag * mag;
-  }
-
-  if (fund_sum <= 0.0f)
-  {
-    g_thd_ratio = 0.0f;
-    return;
-  }
-
-  float32_t harm_sum = 0.0f;
-  for (uint32_t h = 2U; h <= 10U; h++)
-  {
-    uint32_t center = max_idx * h;
-    if (center >= (FFT_LENGTH / 2U))
-    {
-      break;
-    }
-    uint32_t start = (center > HARM_BIN_HALF_WIDTH) ? (center - HARM_BIN_HALF_WIDTH) : 1U;
-    uint32_t end = center + HARM_BIN_HALF_WIDTH;
-    if (end > (FFT_LENGTH / 2U) - 1U)
-    {
-      end = (FFT_LENGTH / 2U) - 1U;
-    }
-    for (uint32_t i = start; i <= end; i++)
-    {
-      float32_t mag = FFT_OutputBuf[i];
-      harm_sum += mag * mag;
-    }
-  }
-
-  float32_t harm_rss = 0.0f;
-  (void)arm_sqrt_f32(harm_sum, &harm_rss);
-  float32_t fund_rss = 0.0f;
-  (void)arm_sqrt_f32(fund_sum, &fund_rss);
-  g_thd_ratio = harm_rss / fund_rss;
 
   memcpy(fft_mag_snapshot, FFT_OutputBuf, sizeof(fft_mag_snapshot));
 }
@@ -323,9 +280,6 @@ void FFT_App_Init(void)
         #error "Unsupported FFT Length! Please check Phase.h"
     #endif
 
-    FFT_SamplingRate_Hz = Phase_Get_TIM3_TriggerFreq_Hz();
-    DFT_Init(FFT_SamplingRate_Hz, Reference_Voltage);
-
     // 已移除Si5351相关初始化，采样时钟由MCU内部或外部其他源提供
 
 #ifdef FFT_TEST_SIMULATION
@@ -334,11 +288,19 @@ void FFT_App_Init(void)
     return;
 #endif
 
+    // 配置ADC通道为PC4 (ADC1_INP4)
+    SCAN_ConfigAdc1ToFFTInput();
+
+    // 重设TIM3周期: Si5351=1.024MHz / 2 = 512kHz采样率
+    htim3.Init.Period = 2U - 1U;
+    __HAL_TIM_SET_AUTORELOAD(&htim3, htim3.Init.Period);
+    FFT_SamplingRate_Hz = Phase_Get_TIM3_TriggerFreq_Hz();
+
     // 启动定时器（用于触发ADC）
     Phase_StartAcq();
 }
 
-void FFT_SendFrameIfReady(void)
+void FFT_SendSpectrumFrame(void)
 {
   if (g_frame_ready == 0U)
   {
@@ -347,37 +309,45 @@ void FFT_SendFrameIfReady(void)
   g_transmitting = 1U;
   g_frame_ready = 0U;
 
-  float32_t fund_freq = DFT_GetFundFreq();
-  float32_t thd = DFT_GetTHD();
+  Phase_ComputeThdAndFft();
 
-  char header[128];
-  int header_len = snprintf(header, sizeof(header),
-                            "DFT_DATA,Fs=%.2f,N=%u,Fund=%.2f,THD=%.6f\r\n",
-                            (double)FFT_SamplingRate_Hz,
-                            (unsigned)FFT_LENGTH,
-                            (double)fund_freq,
-                            (double)thd);
-  if (header_len > 0)
   {
-    while (UART1_TxEnqueue((const uint8_t *)header, (uint16_t)header_len) < 0) {}
-  }
-
-  char line[64];
-  for (uint32_t h = 1; h <= 10; h++)
-  {
-    float32_t mag = DFT_GetHarmonicMag(h);
-    float32_t f_h = fund_freq * (float32_t)h;
-    int line_len = snprintf(line, sizeof(line),
-                            "h=%lu,f=%.2f,mag=%.6f\r\n",
-                            (unsigned long)h, (double)f_h, (double)mag);
-    if (line_len > 0)
+    int32_t fs_int = (int32_t)FFT_SamplingRate_Hz;
+    uint32_t fs_frac = (uint32_t)((FFT_SamplingRate_Hz - (float)fs_int) * 100.0f + 0.5f);
+    char header[64];
+    int header_len = snprintf(header, sizeof(header),
+                              "FFT_BEGIN,Fs=%ld.%02lu,N=%u\r\n",
+                              (long)fs_int, (unsigned long)fs_frac,
+                              (unsigned)FFT_LENGTH);
+    if (header_len > 0)
     {
-      while (UART1_TxEnqueue((const uint8_t *)line, (uint16_t)line_len) < 0) {}
+      while (UART1_TxEnqueue((const uint8_t *)header, (uint16_t)header_len) < 0) {}
     }
   }
 
-  static const char tail[] = "DFT_END\r\n";
-  while (UART1_TxEnqueue((const uint8_t *)tail, (uint16_t)(sizeof(tail) - 1U)) < 0) {}
+  {
+    char line[64];
+    uint32_t halfN = FFT_LENGTH / 2U;
+    for (uint32_t i = 0; i < halfN; i++)
+    {
+      float val = fft_mag_snapshot[i];
+      if (val < 0.0f) val = 0.0f;
+      int32_t int_part = (int32_t)val;
+      uint32_t frac_part = (uint32_t)((val - (float)int_part) * 1000000.0f + 0.5f);
+      if (frac_part >= 1000000U) { int_part++; frac_part = 0U; }
+      int len = snprintf(line, sizeof(line), "%lu,%ld.%06lu\r\n",
+                         (unsigned long)i, (long)int_part, (unsigned long)frac_part);
+      if (len > 0)
+      {
+        while (UART1_TxEnqueue((const uint8_t *)line, (uint16_t)len) < 0) {}
+      }
+    }
+  }
+
+  {
+    static const char tail[] = "FFT_END\r\n";
+    while (UART1_TxEnqueue((const uint8_t *)tail, (uint16_t)(sizeof(tail) - 1U)) < 0) {}
+  }
 
   g_transmitting = 0U;
 }
@@ -603,16 +573,19 @@ float32_t Get_PhaseDifference(void)
  * @param  hadc: ADC句柄指针
  * @note   由HAL库中断处理函数调用
  */
+volatile uint32_t g_cb_count = 0;
+volatile uint32_t g_fft_step = 0;
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
   if (hadc->Instance == ADC1)
   {
+      g_cb_count++;
       HAL_ADC_Stop_DMA(hadc);
 
-      if (g_transmitting == 0U)
+      if (g_transmitting == 0U && g_frame_ready == 0U)
       {
         memcpy(adc_snapshot, ADC_Buffer, sizeof(adc_snapshot));
-        DFT_ProcessFrame(adc_snapshot, FFT_LENGTH);
         g_frame_ready = 1U;
       }
 

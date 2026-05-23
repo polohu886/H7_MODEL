@@ -2,9 +2,9 @@
  ******************************************************************************
  * @file    Phase.h
  * @brief   相位计算与FFT算法头文件 - 适配STM32H7系列
- * @author  
- * @version V2.0
- * @date    2026-01-23
+ * @author  POLO_HU
+ * @version V2.1
+ * @date    2026-05-23
  ******************************************************************************
  */
 
@@ -85,6 +85,8 @@ extern volatile uint8_t ADC_Flag;
 extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern float32_t window;
+extern volatile uint32_t g_cb_count;
+extern volatile uint32_t g_fft_step;
 
 /* 函数声明 */
 
@@ -99,7 +101,7 @@ void FFT_App_Init(void);
  * @note   在主循环中调用
  */
 void FFT_App_Process(void);
-void FFT_SendFrameIfReady(void);
+void FFT_SendSpectrumFrame(void);
 
 /* 兼容旧接口函数 */
 void PhaseCalculate_ADC_Init(ADC_HandleTypeDef *hadc1, ADC_HandleTypeDef *hadc2);

@@ -31,6 +31,7 @@
 #include "ZPN_Uart.h"
 #include "delay.h"
 #include "si5351.h"
+#include "Phase.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,11 +114,10 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   ZPN_UART_Init();
-  UART1_DMAPrintf("Si5351 init...\r\n");
   si5351_Init();
-  UART1_DMAPrintf("Si5351 set freq...\r\n");
   SI5351_SetFrequency(0, 1024000);
-  UART1_DMAPrintf("Si5351 CLK0 = 1MHz\r\n");
+  FFT_App_Init();
+  UART1_DMAPrintf("FFT App started\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,6 +127,13 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    static uint32_t last_diag = 0;
+    if (HAL_GetTick() - last_diag > 2000) {
+      last_diag = HAL_GetTick();
+      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+      UART1_DMAPrintf("CB=%lu\r\n", (unsigned long)g_cb_count);
+    }
+    FFT_SendSpectrumFrame();
     if (pack_parse_pending)
     {
       pack_parse_pending = 0;
