@@ -39,7 +39,7 @@ MCP410XXInit();
 
 设置电位器2 的抽头位置。用法同上。
 
-### SetAmplifierGain(float gain)
+### SetAmplifierGain(float gain) 事实上就焊接了一个电位器 所以就只更改电位器1的值
 
 程控放大器封装函数。输入放大倍数，自动反算电位器抽头值。
 

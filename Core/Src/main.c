@@ -33,6 +33,7 @@
 #include "si5351.h"
 #include "DFT.h"
 #include "MCP41xx.h"
+#include "max262.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -115,8 +116,10 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   ZPN_UART_Init();
+  si5351_Init();
   MCP410XXInit();
-  UART1_DMAPrintf("MCP41xx test start\r\n");
+  MAX262_Init();
+  UART1_DMAPrintf("MAX262 test start\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,16 +130,13 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     static uint32_t last_test = 0;
-    if (HAL_GetTick() - last_test > 2000) {
+    if (HAL_GetTick() - last_test > 3000) {
       last_test = HAL_GetTick();
       HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 
-      static uint8_t gain_x10 = 0;
-      float gain = gain_x10 * 0.1f;
-      SetAmplifierGain(gain);
-      UART1_DMAPrintf("MCP41xx gain=%d.%d\r\n", gain_x10 / 10, gain_x10 % 10);
-      gain_x10 += 5;
-      if (gain_x10 > 20) gain_x10 = 0;
+      float fclk = lhp_WorkFclk(1000.0f, 1.0f, MODE_3, CH_A);
+      SI5351_SetFrequency(1, (uint32_t)fclk);
+      UART1_DMAPrintf("MAX262 LPF f0=1000Hz CLK1=%dHz\r\n", (int)fclk);
     }
 
     if (pack_parse_pending)
