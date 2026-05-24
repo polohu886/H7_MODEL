@@ -227,7 +227,7 @@ static void USART2_TxQueue_KickLocked(void)
     usart2_txq.Busy = 1;
     uart2_tx_busy = 1;
 
-    if (HAL_UART_Transmit_IT(&huart2, &usart2_txq.Buffer[usart2_txq.Head], contiguous) != HAL_OK)
+    if (HAL_UART_Transmit_DMA(&huart2, &usart2_txq.Buffer[usart2_txq.Head], contiguous) != HAL_OK)
     {
         usart2_txq.Busy = 0;
         usart2_txq.InFlight = 0;
