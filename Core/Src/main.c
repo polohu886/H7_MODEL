@@ -32,9 +32,12 @@
 #include "delay.h"
 #include "si5351.h"
 #include "DFT.h"
+#include "Phase.h"
 #include "MCP41xx.h"
 #include "max262.h"
 #include "my_dac.h"
+#include "ad9959.h"
+#include "9959_scan.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -118,29 +121,30 @@ int main(void)
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   ZPN_UART_Init();
-  si5351_Init();
   MCP410XXInit();
   MAX262_Init();
-  MY_DAC_Sine_StartAuto(10000.0f, 2.0f, 1.65f);
-  UART1_DMAPrintf("DAC auto test\r\n");
+  MY_DAC_Sine_StartAuto(20000.0f, 2.0f, 1.65f);
+
+  /* FFT test (DFT_App_Init 已注释，FFT/DFT 共用TIM3+ADC1, 二选一) */
+  // DFT_App_Init(64000.0f, 3.3f, 0.0f, 0.0f);
+  FFT_App_Init();
+  UART1_DMAPrintf("FFT test start\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    static uint32_t last_print = 0;
-    if (HAL_GetTick() - last_print > 2000) {
-      last_print = HAL_GetTick();
-      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+    FFT_SendSpectrumFrame();
 
-      float f = MY_DAC_Sine_GetFrequency();
-      int fi = (int)f;
-      int ff = (int)((f - (float)fi) * 10.0f + 0.5f);
-      UART1_DMAPrintf("DAC f=%d.%d Hz upd=%lu\r\n", fi, ff, MY_DAC_GetSampleUpdateHz());
+    static uint32_t last_tick = 0;
+    if (HAL_GetTick() - last_tick > 2000) {
+      last_tick = HAL_GetTick();
+      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
     }
 
     if (pack_parse_pending)

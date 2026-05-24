@@ -291,8 +291,24 @@ void FFT_App_Init(void)
     // 配置ADC通道为PC4 (ADC1_INP4)
     SCAN_ConfigAdc1ToFFTInput();
 
-    // 重设TIM3周期: Si5351=1.024MHz / 2 = 512kHz采样率
-    htim3.Init.Period = 2U - 1U;
+    // 配置TIM3时钟源和采样周期
+#if PHASE_CLOCK_SOURCE == PHASE_CLK_INTERNAL
+    {
+      uint32_t pclk1 = HAL_RCC_GetPCLK1Freq();
+      uint32_t tim_clk = (RCC->D2CFGR & RCC_D2CFGR_D2PPRE1) ? (pclk1 * 2U) : pclk1;
+      uint32_t period = (uint32_t)((float)tim_clk / PHASE_TARGET_FS + 0.5f);
+      if (period < 2U) period = 2U;
+      htim3.Init.Period = period - 1U;
+      TIM3->SMCR &= ~(TIM_SMCR_SMS | TIM_SMCR_ECE);
+    }
+#else
+    {
+      uint32_t period = (uint32_t)(1024000.0f / PHASE_TARGET_FS + 0.5f);
+      if (period < 2U) period = 2U;
+      htim3.Init.Period = period - 1U;
+      TIM3->SMCR |= TIM_SMCR_ECE;
+    }
+#endif
     __HAL_TIM_SET_AUTORELOAD(&htim3, htim3.Init.Period);
     FFT_SamplingRate_Hz = Phase_Get_TIM3_TriggerFreq_Hz();
 

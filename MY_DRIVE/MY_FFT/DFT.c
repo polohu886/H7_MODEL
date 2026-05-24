@@ -12,6 +12,7 @@
 
 #include "DFT.h"
 #include "arm_const_structs.h"
+#include "WindowFunction.h"
 #include "adc.h"
 #include "tim.h"
 #include <math.h>
@@ -31,6 +32,7 @@ static uint16_t dft_adc_buf[DFT_FFT_LENGTH];
 static uint16_t dft_snapshot[DFT_FFT_LENGTH];
 static volatile uint8_t dft_snapshot_ready = 0;
 
+#ifndef USE_FFT  /* DFT/FFT互斥: CMakeLists.txt定义USE_FFT时跳过 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
   if (hadc->Instance == ADC1)
@@ -45,6 +47,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)dft_adc_buf, DFT_FFT_LENGTH);
   }
 }
+#endif
 
 /* FFT工作缓冲 */
 static float32_t fft_in[DFT_FFT_LENGTH * 2];
@@ -52,6 +55,10 @@ static float32_t fft_mag[DFT_FFT_LENGTH];
 
 /* 信号缓冲（去直流后的电压值） */
 static float32_t sig_buf[DFT_FFT_LENGTH];
+
+/* 诊断：FFT峰检测原始数据 */
+static uint32_t g_diag_peak_bin = 0;
+static float32_t g_diag_y0 = 0, g_diag_y1 = 0, g_diag_y2 = 0;
 
 /* ==================== 内部函数 ==================== */
 
@@ -121,10 +128,17 @@ static void dft_harmonics_all(const float32_t *x, uint32_t N,
  */
 static float32_t find_fundamental(void)
 {
-  /* 1. 准备FFT输入: 实数→复数交错 */
+  static float32_t window[DFT_FFT_LENGTH];
+  static uint8_t win_ready = 0;
+  if (!win_ready) {
+    hannWin(DFT_FFT_LENGTH, window);
+    win_ready = 1;
+  }
+
+  /* 1. 准备FFT输入: 加Hanning窗 → 抑制谐波泄漏 */
   for (uint32_t i = 0; i < DFT_FFT_LENGTH; i++)
   {
-    fft_in[2 * i] = sig_buf[i];
+    fft_in[2 * i] = sig_buf[i] * window[i];
     fft_in[2 * i + 1] = 0.0f;
   }
 
@@ -158,6 +172,13 @@ static float32_t find_fundamental(void)
     float32_t y0 = (peak_idx > 0) ? fft_mag[peak_idx - 1] : 0.0f;
     float32_t y1 = fft_mag[peak_idx];
     float32_t y2 = fft_mag[peak_idx + 1];
+
+    /* 保存诊断数据 */
+    g_diag_peak_bin = peak_idx;
+    g_diag_y0 = y0;
+    g_diag_y1 = y1;
+    g_diag_y2 = y2;
+
     float32_t denom = 2.0f * (2.0f * y1 - y0 - y2);
     float32_t delta = 0.0f;
     if (denom > 1e-12f)
@@ -195,9 +216,20 @@ void DFT_App_Init(float32_t sampling_rate, float32_t ref_voltage,
     HAL_ADC_ConfigChannel(&hadc1, &s);
   }
 
-  /* 配置TIM3: 采样率 = Si5351 1.024MHz / Period */
+  /* 配置TIM3时钟源和采样周期 */
   {
+#if DFT_CLOCK_SOURCE == DFT_CLK_INTERNAL
+    /* APB1 Timer Clock = PCLK1 * 2 (when APB1 prescaler ≠ 1) */
+    uint32_t pclk1 = HAL_RCC_GetPCLK1Freq();
+    uint32_t tim_clk = (RCC->D2CFGR & RCC_D2CFGR_D2PPRE1) ? (pclk1 * 2U) : pclk1;
+    uint32_t period = tim_clk / (uint32_t)sampling_rate;
+    /* 清除ETR从模式，切换为内部时钟 */
+    TIM3->SMCR &= ~(TIM_SMCR_SMS | TIM_SMCR_ECE);
+#else
+    /* 外部时钟: Si5351 CLK0 = 1.024MHz → TIM3 ETR */
     uint32_t period = 1024000U / (uint32_t)sampling_rate;
+    TIM3->SMCR |= TIM_SMCR_ECE;
+#endif
     if (period < 2U) period = 2U;
     htim3.Init.Period = period - 1U;
     __HAL_TIM_SET_AUTORELOAD(&htim3, htim3.Init.Period);
@@ -265,4 +297,12 @@ float32_t DFT_GetHarmonicMag(uint32_t h)
 {
   if (h < 1 || h > DFT_MAX_HARMONIC) return 0.0f;
   return g_mags[h];
+}
+
+void DFT_DiagGetPeak(uint32_t *bin, float32_t *y0, float32_t *y1, float32_t *y2)
+{
+  if (bin) *bin = g_diag_peak_bin;
+  if (y0)  *y0  = g_diag_y0;
+  if (y1)  *y1  = g_diag_y1;
+  if (y2)  *y2  = g_diag_y2;
 }

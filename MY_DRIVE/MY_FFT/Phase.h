@@ -30,6 +30,13 @@ extern "C" {
  * @brief FFT变换长度
  * @note  支持64, 128, 256, 512, 1024, 2048, 4096
  */
+/* TIM3时钟源选择: 0=外部Si5351(1.024MHz), 1=内部APB1(240MHz) */
+#define PHASE_CLK_EXTERNAL    0
+#define PHASE_CLK_INTERNAL    1
+#define PHASE_CLOCK_SOURCE    PHASE_CLK_INTERNAL  /* <-- 改这里切换 */
+
+#define PHASE_TARGET_FS       1024000.0f  /* 目标采样率(Hz) */
+
 #define FFT_LENGTH          4096
 
 /**

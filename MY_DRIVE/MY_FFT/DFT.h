@@ -23,6 +23,11 @@ extern "C" {
 #define DFT_MAX_HARMONIC    10U
 #define DFT_FFT_LENGTH      4096U
 
+/* TIM3时钟源选择: 0=外部Si5351(1.024MHz), 1=内部APB1(240MHz) */
+#define DFT_CLK_EXTERNAL    0
+#define DFT_CLK_INTERNAL    1
+#define DFT_CLOCK_SOURCE    DFT_CLK_INTERNAL  /* <-- 改这里切换时钟源 */
+
 /* 基波搜索默认范围 (Hz), 可在 DFT_Init 中覆盖 */
 #define DFT_SEARCH_MIN_HZ   1.0f
 #define DFT_SEARCH_MAX_HZ   256000.0f
@@ -47,6 +52,7 @@ void DFT_ProcessFrame(const uint16_t *adc_data, uint32_t length);
 float32_t DFT_GetFundFreq(void);
 float32_t DFT_GetTHD(void);
 float32_t DFT_GetHarmonicMag(uint32_t h);
+void DFT_DiagGetPeak(uint32_t *bin, float32_t *y0, float32_t *y1, float32_t *y2);
 
 #ifdef __cplusplus
 }
