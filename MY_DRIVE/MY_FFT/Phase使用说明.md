@@ -45,6 +45,7 @@ Si5351 CLK0 (1.024MHz)
 
 | 宏 | 值 | 说明 |
 |------|------|------|
+| `PHASE_CLOCK_SOURCE` | `PHASE_CLK_INTERNAL` | **重要**：设为 `PHASE_CLK_EXTERNAL` 才启用 PD2 外部时钟 (Si5351 1.024MHz)。内部模式用 APB1 时钟，第 7 节公式不适用 |
 | `FFT_LENGTH` | 4096 | FFT 点数，2 的幂 |
 | `ADC_EFFECTIVE_BITS` | 16 | ADC 分辨率 |
 | `SAMPLING_RATE_DEFAULT` | 64000 | 兜底值，运行时自动覆盖 |

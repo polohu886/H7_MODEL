@@ -73,6 +73,7 @@ int main(void) {
 
 | 宏 (DFT.h) | 默认值 | 说明 |
 |------|--------|------|
+| `DFT_CLOCK_SOURCE` | `DFT_CLK_INTERNAL` | **重要**：设为 `DFT_CLK_EXTERNAL` 才启用 PD2 外部时钟 (Si5351 1.024MHz)。内部模式用 APB1 时钟 (~120MHz)，第 6 节公式不适用 |
 | `DFT_MAX_HARMONIC` | 10 | THD 计算包含高次谐波数 |
 | `DFT_FFT_LENGTH` | 4096 | FFT 点数 |
 | `DFT_SEARCH_MIN_HZ` | 1.0 | 基波搜索下限 |
