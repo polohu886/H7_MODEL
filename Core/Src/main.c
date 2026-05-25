@@ -153,11 +153,14 @@ int main(void)
         uint16_t n = UART2_GetReceivedData(buf, sizeof(buf));
         for (uint16_t i = 0; i < n; i++) {
           if (buf[i] == 0x05) {
-            HMI_SetText("page1.t0", "nihao");
-            uint8_t wave[256];
-            for (int j = 0; j < 256; j++)
-              wave[j] = (uint8_t)j;
-            HMI_FastWaveSend("s0", 0, 256, wave);
+            HMI_SetText("t0", "cos");
+            HMI_ClearWave("s0", 0xFF);
+            uint8_t wave[200];
+            for (int j = 0; j < 200; j++) {
+              float phase = 2.0f * 3.14159f * j / 50.0f;   // 相位，周期为50个点
+              wave[j] = (sinf(phase) >= 0) ? 200 : 0;      // 方波：>=0 输出高，否则低
+            }
+            HMI_FastWaveSend("s0", 0, 200, wave);
             UART1_DMAPrintf("HMI: got 05\r\n");
             break;
           }

@@ -148,7 +148,7 @@ int HMI_SetFloat(const char* objname, float value, int decimal)
 int HMI_ClearWave(const char* objname, int channel)
 {
     if(objname == NULL) return -1;
-    return UART2_SendPrintf("cle %s,%d", objname, channel);
+    return UART2_SendPrintf("cle %s.id,%d", objname, channel);
 }
 
 /**
