@@ -190,14 +190,12 @@ static void USART1_TxQueue_KickLocked(void)
     usart1_txq.InFlight = contiguous;
     usart1_txq.Busy = 1;
     uart1_tx_busy = 1;
-    uart2_tx_busy = 1;
 
     if (HAL_UART_Transmit_DMA(&huart1, &usart1_txq.Buffer[usart1_txq.Head], contiguous) != HAL_OK)
     {
         usart1_txq.Busy = 0;
         usart1_txq.InFlight = 0;
         uart1_tx_busy = 0;
-        uart2_tx_busy = 0;
     }
 }
 
@@ -248,7 +246,6 @@ static void USART1_TxQueue_OnTxComplete(void)
 
     usart1_txq.Busy = 0;
     uart1_tx_busy = 0;
-    uart2_tx_busy = 0;
 
     USART1_TxQueue_KickLocked();
     __enable_irq();

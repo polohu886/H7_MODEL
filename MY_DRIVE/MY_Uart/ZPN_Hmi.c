@@ -17,7 +17,6 @@
 #include "main.h"
 #include "ZPN_Hmi.h"
 #include "ZPN_Uart.h"
-#include "math.h"
 #include "string.h"
 
 /*============================== 私有宏定义 ==============================*/
@@ -124,8 +123,9 @@ int HMI_SetValue(const char* objname, int value)
 int HMI_SetFloat(const char* objname, float value, int decimal)
 {
     if(objname == NULL || decimal < 0 || decimal > 6) return -1;
-    
-    int temp = (int)(value * pow(10, decimal)); // 浮点缩放
+
+    static const int pow10[] = {1, 10, 100, 1000, 10000, 100000, 1000000};
+    int temp = (int)(value * pow10[decimal]);
     return UART2_SendPrintf("%s.val=%d", objname, temp);
 }
 
@@ -211,31 +211,22 @@ int HMI_FastWaveSend(const char* objname, int channel, int len, const uint8_t* v
     if(objname == NULL || values == NULL) return -1;
     if(channel < 0 || channel > 3) return -1;
     if(len <= 0 || len > 1024) return -1;
-    
-    int ret = UART2_SendPrintf("addt %s.id,%d,%d", objname, channel, len);
-    if(ret < 0) return ret;
 
+    // 等上一包发完再入队，避免超时后指令头残留
     uint32_t t0 = HAL_GetTick();
-    while (!UART2_TxIsIdle())
-    {
-        if ((HAL_GetTick() - t0) > 200U)
-        {
-            return -1;
-        }
+    while (!UART2_TxIsIdle()) {
+        if ((HAL_GetTick() - t0) > 200U) return -1;
     }
+
+    int ret = UART2_SendPrintf("addt %s.id,%d,%d", objname, channel, len);
+    if (ret < 0) return ret;
 
     HAL_Delay(10);
 
-    if (UART2_TxEnqueue(values, (uint16_t)len) < 0)
-    {
-        return -1;
-    }
+    if (UART2_TxEnqueue(values, (uint16_t)len) < 0) return -1;
 
     uint8_t end_cmd[1] = {0x01};
-    if (UART2_TxEnqueue(end_cmd, 1U) < 0)
-    {
-        return -1;
-    }
-    
+    if (UART2_TxEnqueue(end_cmd, 1U) < 0) return -1;
+
     return len;
 }
