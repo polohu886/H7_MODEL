@@ -153,7 +153,7 @@ int main(void)
         uint16_t n = UART2_GetReceivedData(buf, sizeof(buf));
         for (uint16_t i = 0; i < n; i++) {
           if (buf[i] == 0x05) {
-            HMI_SetText("t0", "nihaoaaa");
+            HMI_SetText("t0", "wohaoshuai");
             HMI_ClearWave("s0", 0xFF);
             uint8_t wave[200];
             for (int j = 0; j < 200; j++) {
