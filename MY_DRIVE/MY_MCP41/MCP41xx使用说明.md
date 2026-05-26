@@ -71,3 +71,17 @@ MCP41xx_1writedata(128);  // 电位器1 设为中间值
 // 使用程控放大器接口
 SetAmplifierGain(1.5f);   // 1.5倍放大
 ```
+
+## CMake 工程配置
+
+```cmake
+# 添加驱动源文件
+target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+    MY_DRIVE/MY_MCP41/MCP41xx.c
+)
+
+# 添加驱动头文件路径
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+    MY_DRIVE/MY_MCP41
+)
+```
