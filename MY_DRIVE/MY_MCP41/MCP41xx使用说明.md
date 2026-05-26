@@ -29,17 +29,9 @@ MCP410XXInit();
 
 内部自动使能 GPIOC 时钟并配置 PC8/PC9/PC12/PC13 为推挽输出。**不需要在 CubeMX 中配置这些引脚**（确保未被其他外设占用即可）。
 
-## 核心函数
+## 外部接口
 
-### MCP41xx_1writedata(uint8_t dat)
-
-设置电位器1 的抽头位置。参数 `dat` 范围 0~255，对应 0Ω ~ 满量程。
-
-### MCP41xx_2writedata(uint8_t dat)
-
-设置电位器2 的抽头位置。用法同上。
-
-### SetAmplifierGain(float gain) 事实上就焊接了一个电位器 所以就只更改电位器1的值
+### void SetAmplifierGain(float gain)
 
 程控放大器封装函数。输入放大倍数，自动反算电位器抽头值。
 
@@ -64,11 +56,6 @@ MCP410XXInit();
 
 ```c
 MCP410XXInit();
-
-// 直接设置电位器值
-MCP41xx_1writedata(128);  // 电位器1 设为中间值
-
-// 使用程控放大器接口
 SetAmplifierGain(1.5f);   // 1.5倍放大
 ```
 
