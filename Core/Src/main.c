@@ -28,18 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ZPN_Uart.h"
-#include "ZPN_Hmi.h"
-#include "ZPN_Hmi_Pack.h"
-#include "delay.h"
-#include "si5351.h"
-#include "DFT.h"
-#include "Phase.h"
-#include "MCP41xx.h"
-#include "max262.h"
-#include "my_dac.h"
-#include "ad9959.h"
-#include "9959_scan.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,7 +49,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern volatile uint8_t pack_parse_pending;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -106,7 +95,7 @@ int main(void)
   PeriphCommonClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  Delay_Init();
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -122,51 +111,17 @@ int main(void)
   MX_TIM4_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-  ZPN_UART_Init();
-  UART1_DMAPrintf("HMI test start\r\n");
-  HMI_SetText("t0", "nihao");
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    static uint32_t last_tick = 0;
-    if (HAL_GetTick() - last_tick > 2000) {
-      last_tick = HAL_GetTick();
-      HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    }
 
-    /* 检测串口屏按钮数据, 大块回显直接丢弃 */
-    {
-      uint16_t len = UART2_GetRxBufferLength();
-      if (len > 16) {
-        uint8_t dummy[64];
-        while (UART2_GetRxBufferLength() > 0)
-          UART2_GetReceivedData(dummy, sizeof(dummy));
-      } else if (len > 0) {
-        uint8_t buf[16];
-        uint16_t n = UART2_GetReceivedData(buf, sizeof(buf));
-        for (uint16_t i = 0; i < n; i++) {
-          if (buf[i] == 0x05) {
-            HMI_SetText("t0", "wohaoshuai");
-            HMI_ClearWave("s0", 0xFF);
-            uint8_t wave[200];
-            for (int j = 0; j < 200; j++) {
-              float phase = 2.0f * 3.14159f * j / 50.0f;   // 相位，周期为50个点
-              wave[j] = (sinf(phase) >= 0) ? 200 : 0;      // 方波：>=0 输出高，否则低
-            }
-            HMI_FastWaveSend("s0", 0, 200, wave);
-            UART1_DMAPrintf("HMI: got 05\r\n");
-            break;
-          }
-        }
-      }
-    }
   }
   /* USER CODE END 3 */
 }

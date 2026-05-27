@@ -1,46 +1,46 @@
-#ifndef __AD9959_H
-#define __AD9959_H
-
-#include "main.h"
-#include "stdint.h"
-
-// AD9959 ¼Ä´æÆ÷µØÖ·¶¨Òå
-#define CSR_ADD   0x00   // Í¨µÀÑ¡Ôñ¼Ä´æÆ÷
-#define FR1_ADD   0x01   // ¹¦ÄÜ¼Ä´æÆ÷1
-#define FR2_ADD   0x02   // ¹¦ÄÜ¼Ä´æÆ÷2
-#define CFR_ADD   0x03   // Í¨µÀ¹¦ÄÜ¼Ä´æÆ÷
-#define CFTW0_ADD 0x04   // Í¨µÀÆµÂÊµ÷Ğ³×Ö¼Ä´æÆ÷0
-#define CPOW0_ADD 0x05   // Í¨µÀÏàÎ»Æ«ÒÆ×Ö¼Ä´æÆ÷0
-#define ACR_ADD   0x06   // ·ù¶È¿ØÖÆ¼Ä´æÆ÷
-
-// »ù´¡ IO ¿ØÖÆºê (ÊÊÅä HAL ¿â)
-#define CS_1()          HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET)
-#define CS_0()          HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET)
-#define SCLK_1()        HAL_GPIO_WritePin(SCLK_GPIO_Port, SCLK_Pin, GPIO_PIN_SET)
-#define SCLK_0()        HAL_GPIO_WritePin(SCLK_GPIO_Port, SCLK_Pin, GPIO_PIN_RESET)
-#define UPDATE_1()      HAL_GPIO_WritePin(UPDATE_GPIO_Port, UPDATE_Pin, GPIO_PIN_SET)
-#define UPDATE_0()      HAL_GPIO_WritePin(UPDATE_GPIO_Port, UPDATE_Pin, GPIO_PIN_RESET)
-#define SDIO0_1()       HAL_GPIO_WritePin(SDIO0_GPIO_Port, SDIO0_Pin, GPIO_PIN_SET)
-#define SDIO0_0()       HAL_GPIO_WritePin(SDIO0_GPIO_Port, SDIO0_Pin, GPIO_PIN_RESET)
-#define Reset_1()       HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET)
-#define Reset_0()       HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET)
-#define AD9959_PWR_0()  HAL_GPIO_WritePin(PDC_GPIO_Port, PDC_Pin, GPIO_PIN_RESET)
-
-// ÆäËû¿ØÖÆÒı½Å
-#define PS0_0()         HAL_GPIO_WritePin(PS0_GPIO_Port, PS0_Pin, GPIO_PIN_RESET)
-#define PS1_0()         HAL_GPIO_WritePin(PS1_GPIO_Port, PS1_Pin, GPIO_PIN_RESET)
-#define PS2_0()         HAL_GPIO_WritePin(PS2_GPIO_Port, PS2_Pin, GPIO_PIN_RESET)
-#define PS3_0()         HAL_GPIO_WritePin(PS3_GPIO_Port, PS3_Pin, GPIO_PIN_RESET)
-
-// º¯ÊıÉùÃ÷
-void Init_AD9959(void);
-void Write_Frequence(uint8_t Channel, uint32_t Freq);
-void Write_Amplitude(uint8_t Channel, uint16_t Ampli);
-void Write_Phase(uint8_t Channel, uint16_t Phase);
-void AD9959_IO_Update(void);
-
-extern uint32_t SinFre[4];
-extern uint32_t SinAmp[4];
-extern uint32_t SinPhr[4];
-
-#endif
+#ifndef __AD9959_H
+#define __AD9959_H
+
+#include "main.h"
+#include "stdint.h"
+
+// AD9959 å¯„å­˜å™¨åœ°å€å®šä¹‰
+#define CSR_ADD   0x00   // é€šé“é€‰æ‹©å¯„å­˜å™¨
+#define FR1_ADD   0x01   // åŠŸèƒ½å¯„å­˜å™¨1
+#define FR2_ADD   0x02   // åŠŸèƒ½å¯„å­˜å™¨2
+#define CFR_ADD   0x03   // é€šé“åŠŸèƒ½å¯„å­˜å™¨
+#define CFTW0_ADD 0x04   // é€šé“é¢‘ç‡è°ƒè°å­—å¯„å­˜å™¨0
+#define CPOW0_ADD 0x05   // é€šé“ç›¸ä½åç§»å­—å¯„å­˜å™¨0
+#define ACR_ADD   0x06   // å¹…åº¦æ§åˆ¶å¯„å­˜å™¨
+
+// åŸºç¡€ IO æ§åˆ¶å® (é€‚é… HAL åº“)
+#define CS_1()          HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET)
+#define CS_0()          HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET)
+#define SCLK_1()        HAL_GPIO_WritePin(SCLK_GPIO_Port, SCLK_Pin, GPIO_PIN_SET)
+#define SCLK_0()        HAL_GPIO_WritePin(SCLK_GPIO_Port, SCLK_Pin, GPIO_PIN_RESET)
+#define UPDATE_1()      HAL_GPIO_WritePin(UPDATE_GPIO_Port, UPDATE_Pin, GPIO_PIN_SET)
+#define UPDATE_0()      HAL_GPIO_WritePin(UPDATE_GPIO_Port, UPDATE_Pin, GPIO_PIN_RESET)
+#define SDIO0_1()       HAL_GPIO_WritePin(SDIO0_GPIO_Port, SDIO0_Pin, GPIO_PIN_SET)
+#define SDIO0_0()       HAL_GPIO_WritePin(SDIO0_GPIO_Port, SDIO0_Pin, GPIO_PIN_RESET)
+#define Reset_1()       HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET)
+#define Reset_0()       HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_RESET)
+#define AD9959_PWR_0()  HAL_GPIO_WritePin(PDC_GPIO_Port, PDC_Pin, GPIO_PIN_RESET)
+
+// å…¶ä»–æ§åˆ¶å¼•è„š
+#define PS0_0()         HAL_GPIO_WritePin(PS0_GPIO_Port, PS0_Pin, GPIO_PIN_RESET)
+#define PS1_0()         HAL_GPIO_WritePin(PS1_GPIO_Port, PS1_Pin, GPIO_PIN_RESET)
+#define PS2_0()         HAL_GPIO_WritePin(PS2_GPIO_Port, PS2_Pin, GPIO_PIN_RESET)
+#define PS3_0()         HAL_GPIO_WritePin(PS3_GPIO_Port, PS3_Pin, GPIO_PIN_RESET)
+
+// å‡½æ•°å£°æ˜
+void Init_AD9959(void);
+void Write_Frequence(uint8_t Channel, uint32_t Freq);
+void Write_Amplitude(uint8_t Channel, uint16_t Ampli);
+void Write_Phase(uint8_t Channel, uint16_t Phase);
+void AD9959_IO_Update(void);
+
+extern uint32_t SinFre[4];
+extern uint32_t SinAmp[4];
+extern uint32_t SinPhr[4];
+
+#endif
