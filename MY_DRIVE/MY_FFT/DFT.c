@@ -92,16 +92,22 @@ static void dft_harmonics_all(const float32_t *x, uint32_t N,
   float32_t im[DFT_MAX_HARMONIC + 1] = {0.0f};
   float32_t omega = 2.0f * 3.14159265358979f * f_fund / g_fs;
 
+  /* 生成Hanning窗 (一次) */
+  static float32_t win[DFT_FFT_LENGTH];
+  static uint8_t win_ready = 0;
+  if (!win_ready) {
+    hannWin(DFT_FFT_LENGTH, win);
+    win_ready = 1;
+  }
+
   for (uint32_t n = 0; n < N; n++)
   {
     float32_t theta = omega * (float32_t)n;
     float32_t c = cosf(theta);
     float32_t s = sinf(theta);
 
-    /* 三角递推: cos(hθ) = cos((h-1)θ)cosθ - sin((h-1)θ)sinθ */
-    /*           sin(hθ) = sin((h-1)θ)cosθ + cos((h-1)θ)sinθ */
-    float32_t ch = 1.0f, sh = 0.0f;  /* h=0 */
-    float32_t sample = x[n];
+    float32_t ch = 1.0f, sh = 0.0f;
+    float32_t sample = x[n] * win[n];  /* 加窗抑制旁瓣泄漏 */
 
     for (uint32_t h = 1; h <= DFT_MAX_HARMONIC; h++)
     {
@@ -115,10 +121,10 @@ static void dft_harmonics_all(const float32_t *x, uint32_t N,
     }
   }
 
+  /* Hanning窗相干增益=0.5, 幅值修正: 2.0/(N*0.5) = 4.0/N */
   for (uint32_t h = 1; h <= DFT_MAX_HARMONIC; h++)
   {
-    float32_t val = sqrtf(re[h] * re[h] + im[h] * im[h]);
-    mags[h] = val * 2.0f / (float32_t)N;  /* 归一化到实际电压幅值 */
+    mags[h] = sqrtf(re[h] * re[h] + im[h] * im[h]) * 4.0f / (float32_t)N;
   }
 }
 
@@ -183,7 +189,7 @@ static float32_t find_fundamental(void)
     float32_t delta = 0.0f;
     if (denom > 1e-12f)
     {
-      delta = (y0 - y2) / denom;
+      delta = (y2 - y0) / denom;  /* δ = -b/(2a) */
       if (delta > 0.5f) delta = 0.5f;
       if (delta < -0.5f) delta = -0.5f;
     }
@@ -197,7 +203,6 @@ void DFT_App_Init(float32_t sampling_rate, float32_t ref_voltage,
                   float32_t search_min_hz, float32_t search_max_hz)
 {
   /* 保存参数 */
-  g_fs = sampling_rate;
   g_vref = ref_voltage;
   g_search_min = (search_min_hz > 0.0f) ? search_min_hz : DFT_SEARCH_MIN_HZ;
   g_search_max = (search_max_hz > 0.0f) ? search_max_hz : DFT_SEARCH_MAX_HZ;
@@ -205,32 +210,35 @@ void DFT_App_Init(float32_t sampling_rate, float32_t ref_voltage,
   g_fund_freq = 0.0f;
   g_thd = 0.0f;
 
-  /* 配置ADC1通道 → PC4 */
+  /* 配置ADC1通道 → PC4 (延长采样时间以保证16-bit精度) */
   {
     ADC_ChannelConfTypeDef s = {0};
     s.Channel = ADC_CHANNEL_4;
     s.Rank = ADC_REGULAR_RANK_1;
-    s.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+    s.SamplingTime = ADC_SAMPLETIME_8CYCLES_5;  /* 8.5 ADC cycles */
     s.SingleDiff = ADC_SINGLE_ENDED;
     s.OffsetNumber = ADC_OFFSET_NONE;
     HAL_ADC_ConfigChannel(&hadc1, &s);
   }
 
-  /* 配置TIM3时钟源和采样周期 */
+  /* 配置TIM3时钟源和采样周期，回算实际采样率写入g_fs */
   {
+    uint32_t period;
 #if DFT_CLOCK_SOURCE == DFT_CLK_INTERNAL
     /* APB1 Timer Clock = PCLK1 * 2 (when APB1 prescaler ≠ 1) */
     uint32_t pclk1 = HAL_RCC_GetPCLK1Freq();
     uint32_t tim_clk = (RCC->D2CFGR & RCC_D2CFGR_D2PPRE1) ? (pclk1 * 2U) : pclk1;
-    uint32_t period = tim_clk / (uint32_t)sampling_rate;
-    /* 清除ETR从模式，切换为内部时钟 */
+    period = tim_clk / (uint32_t)sampling_rate;
+    if (period < 2U) period = 2U;
+    g_fs = (float32_t)tim_clk / (float32_t)period;  /* 实际采样率，非目标值 */
     TIM3->SMCR &= ~(TIM_SMCR_SMS | TIM_SMCR_ECE);
 #else
     /* 外部时钟: Si5351 CLK0 = 1.024MHz → TIM3 ETR */
-    uint32_t period = 1024000U / (uint32_t)sampling_rate;
+    period = 1024000U / (uint32_t)sampling_rate;
+    if (period < 2U) period = 2U;
+    g_fs = 1024000.0f / (float32_t)period;
     TIM3->SMCR |= TIM_SMCR_ECE;
 #endif
-    if (period < 2U) period = 2U;
     htim3.Init.Period = period - 1U;
     __HAL_TIM_SET_AUTORELOAD(&htim3, htim3.Init.Period);
   }

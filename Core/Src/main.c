@@ -28,7 +28,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "DFT.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,7 +50,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+static uint32_t dft_last_tick = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,7 +112,8 @@ int main(void)
   MX_TIM4_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-
+  DFT_App_Init(1024000.0f, 3.3f, 0.0f, 0.0f);
+  printf("DFT THD Measurement Start\r\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,7 +123,20 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    DFT_Process();
 
+    if (HAL_GetTick() - dft_last_tick >= 1000U)
+    {
+      dft_last_tick = HAL_GetTick();
+
+      printf("Freq: %.2f Hz  THD: %.4f %%\r\n",
+             DFT_GetFundFreq(), DFT_GetTHD() * 100.0f);
+
+      for (uint32_t h = 1; h <= 10U; h++)
+      {
+        printf("  H%lu: %.6f V\r\n", (unsigned long)h, DFT_GetHarmonicMag(h));
+      }
+    }
   }
   /* USER CODE END 3 */
 }
